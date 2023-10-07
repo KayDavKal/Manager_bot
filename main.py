@@ -4,8 +4,10 @@ TOKEN = os.environ['TOKEN']
 from app import stay_alive
 from settings import database, set_scam_delete, get_scam_delete, set_verified_role, get_verified_role
 from tagbase import tagbase, tag_create
+from lvlsystem import lvlsystem, get_xp
 import json
 import random
+import psutil
 
 import discord
 from discord import app_commands
@@ -304,6 +306,7 @@ async def ball(interaction, question: str):
     )
     await interaction.response.send_message(embed=embed)
 
+#rps command
 @tree.command(name="rps", description="Play a game of rock paper scissors")
 async def rps(interaction, choice: str):
   user = interaction.user
@@ -375,10 +378,128 @@ async def rps(interaction, choice: str):
       )
       await interaction.response.send_message(embed=embed)
 
+# tag create command
 @tree.command(name="tag_create", description="Create a shorthand tag!")
 async def tagcreate(interaction, tagname: str, tagcontent: str):
+  user = interaction.user.display_name
   guild_id = interaction.guild.id
-  await tag_create(guild_id, tagname, tagcontent)
+  check = await tag_check(guild_id, tagname)
+  if check == None:
+    await tag_create(guild_id, tagname, tagcontent, user)
+    embed = discord.Embed (
+      title = "Tag created!",
+      description = f"{tagname} successfully created!",
+      color = discord.Color.green()
+    )
+    embed.add_field(
+      name = "Tag Content:",
+      value = f"{tagcontent}"
+    )
+    await interaction.response.send_message(embed=embed, ephemeral=True)
+  else:
+    embed = discord.Embed(
+      title = "Already existing!",
+      description = f"The tag {tagname} is already existing!",
+      color = discord.Color.red()
+    )
+    await interaction.response.send_message(embed=embed, ephemeral=True)
+
+# tag command
+class reportButton(discord.ui.Button):
+    def __init__(self):
+        super().__init__(label='Report', style=discord.ButtonStyle.danger, custom_id="reportButton")
+
+    @discord.ui.button(label='Report', style=discord.ButtonStyle.danger)
+    async def report(self, button: discord.ui.Button, interaction: discord.Interaction):
+        print("Button Clicked!")
+        await interaction.response.send_message('Report button pressed!', ephemeral=True)
+
+@tree.command(name="tag", description="Use a shortcut tag!")
+async def tag(interaction, tagname: str):
+    guild_id = interaction.guild.id
+    content = await tag_get(guild_id, tagname)
+    user = await tag_name(guild_id, tagname)
+
+    if content is not None and user is not None:
+        view = discord.ui.View()
+        view.add_item(reportButton())
+      
+        embed = discord.Embed(
+            title=f"Tag: {tagname}",
+            description=f"{content}",
+            color=discord.Color.blue()
+        )
+        embed.set_footer(
+            text=f"{user} created this command"
+        )
+        await interaction.response.send_message(embed=embed, view=view)
+    else:
+        embed = discord.Embed(
+            title="Tag not found!",
+            description=f"{tagname} isn't registered, maybe a typo?",
+            color=discord.Color.red()
+        )
+        await interaction.response.send_message(embed=embed)
+
+#info command
+class repoButton(discord.ui.Button):
+    def __init__(self):
+        super().__init__(label='Open source', style=discord.ButtonStyle.link, url="https://github.com/KayDavKal/Manager_bot")
+          
+@tree.command(name="info", description="See stats about the Bot!")
+async def info(interaction):
+  view = discord.ui.View()
+  view.add_item(repoButton())
+  
+  latency = round(client.latency * 1000)
+  server_count = len(client.guilds)
+  
+  uptime = datetime.datetime.utcnow() - client.start_time
+  days, hours, minutes, seconds = uptime.days, uptime.seconds // 3600, (uptime.seconds // 60) % 60, uptime.seconds % 60
+
+  process = psutil.Process()
+  memory_usage = process.memory_info().rss / (1024 ** 2)
+
+  embed = discord.Embed(
+    title = "Bot Informations",
+    color = discord.Color.blue()
+  )
+  embed.add_field(
+    name = "Bot Version",
+    value = "```1.0.17```",
+    inline = True
+  )
+  embed.add_field(
+    name = "Bot Owner",
+    value = "```KayDavKal```",
+    inline = True
+  )
+  embed.add_field(
+    name = "Ping",
+    value = f"```{latency}ms```",
+    inline = True
+  )
+  embed.add_field(
+    name = "Servers",
+    value = f"```{server_count}```",
+    inline = True
+  )
+  embed.add_field(
+    name = "Uptime",
+    value = f"```{uptime}```",
+    inline = True
+  )
+  embed.add_field(
+    name = "Memory Usage",
+    value = f"```{memory_usage: .2f} MB```",
+    inline = True
+  )
+  embed.add_field(
+    name = "Library Version",
+    value = f"```Discord.py {discord.__version__}```",
+    inline = True
+  )
+  await interaction.response.send_message(embed=embed, view=view)
   
 #BOT ONLINE
 @client.event
@@ -388,5 +509,6 @@ async def on_ready():
     stay_alive()
     await database()
     await tagbase()
+    await lvlsystem()
   
 client.run(TOKEN)
