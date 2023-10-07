@@ -1,11 +1,11 @@
 # Manager_bot
 
-##info
+## Info
 
 This Bot is made by me and devoped by me.
 Its a single person creation and gets updated in my freetime.
 
-##Version of the bot:
+## Version of the bot:
 
 1.0.17
 
