@@ -7,7 +7,11 @@ Its a single person creation and gets updated in my freetime.
 
 ## Version of the bot:
 
-1.3.0
+v.1.3.0
+
+## Support Server
+
+Feel free to join [the support server](https://discord.com/invite/Myx3DWMVqc)!
 
 ## Credit
 
