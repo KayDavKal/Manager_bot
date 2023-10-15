@@ -2,15 +2,16 @@ import os
 TOKEN = os.environ['TOKEN']
 
 from app import stay_alive
-from settings import database, set_scam_delete, get_scam_delete, set_verified_role, get_verified_role
-from tagbase import tagbase, tag_create
-from lvlsystem import lvlsystem, get_xp
+from settings import database, set_scam_delete, get_scam_delete, set_verified_role, get_verified_role, set_sTag, get_sTag
+from tagbase import tagbase, tag_create, tag_check, tag_get, tag_name, add_strike, check_strike, del_tag
+from lvlsystem import lvlsystem, get_xp, add_xp, get_level
 import json
 import random
 import datetime
 import psutil
 
 import discord
+from discord.ext import commands
 from discord import app_commands
 from discord import ui
 
@@ -42,7 +43,7 @@ async def first_command(interaction):
 async def help(interaction):
   embed = discord.Embed(
     title = "Help",
-    description = "",
+    description = "Get infos about commands!",
     color = discord.Color.blue()
   )
   embed.add_field(
@@ -50,8 +51,20 @@ async def help(interaction):
     value="See how fast I can reply!"
   )
   embed.add_field(
+    name="/info",
+    value="Get informations about the bot!"
+  )
+  embed.add_field(
     name="/verify",
     value="Verify yourself to the server!"
+  )
+  embed.add_field(
+    name="/tag",
+    value="Send a shorthand tag!"
+  )
+  embed.add_field(
+    name="/tag_create",
+    value="Create your own shorthand tag!"
   )
   embed.add_field(
     name="/rps",
@@ -59,7 +72,7 @@ async def help(interaction):
   )
   embed.add_field(
     name="/8ball",
-    value="Ask the bot anythin and it will answer in a span from yes to no!"
+    value="Ask the bot anything and it will answer in a span from yes to no!"
   )
   await interaction.response.send_message(embed=embed, ephemeral=True)
 
@@ -68,19 +81,28 @@ async def help(interaction):
   name="settings_verified",
   description="Set the role id for your member/verified role!"
 )
-async def set_verified(interaction, role_id: str):
+async def set_verified(interaction, role: discord.Role):
   user = interaction.user
+  owner = interaction.guild.owner_id
   guild_id = str(interaction.guild.id)
-  if role_id:
-    await set_verified_role(guild_id, role_id)
+  if user.id != owner:
     embed = discord.Embed(
-      title = "Successfuly Updated!",
-      description = f"successfuly set role_id to {role_id}",
-      color = discord.Color.green()
+      title = "Missing Permission",
+      description = "Only the owner of the server can use this command!",
+      color = discord.Color.red()
     )
-    await interaction.response.send_message(embed=embed)
+    await interaction.response.send_message(embed=embed, ephemeral=True)
   else:
-    return
+    if role:
+      await set_verified_role(guild_id, role.id)
+      embed = discord.Embed(
+        title = "Successfuly Updated!",
+        description = f"successfuly set role_id to {role}",
+        color = discord.Color.green()
+      )
+      await interaction.response.send_message(embed=embed)
+    else:
+      return
 
 #verified role
 @tree.command(
@@ -93,31 +115,31 @@ async def verify(interaction):
   guild_id = str(interaction.guild.id)
   role_id = await get_verified_role(guild_id)
   if role_id:
-    role = discord.utils.get(interaction.guild.roles, id=int(role_id))
-    if role:
-      await user.add_roles(role)
+    if role_id and discord.utils.get(user.roles, id=int(role_id)):
       embed = discord.Embed(
-        title = f"Welcome {user.mention}!",
-        description = "Welcome to the Server! We hope you'll have a nice stay here!",
-        color = discord.Color.blue()
+        title="Error!",
+        description="It seems like you already have been verified!",
+        color = discord.Color.red(),
       )
-      embed.set_image(url=avatar_url)
-      await interaction.response.send_message(embed=embed)
+      await interaction.response.send_message(embed=embed, ephemeral=True)
     else:
-      embed = discord.Embed(
-        title="Error",
-        description="We didn't find the role you're searching for! Try again later!",
-        color = discord.Color.red()
-      )
-      await interaction.response.send_message(embed=embed)
-  else:
-    embed = discord.Embed(
-      title="Error",
-      description="We didn't find the role you're searching for! Try again later!",
-      color = discord.Color.red()
-    )
-    await interaction.response.send_message(embed=embed)
-
+      role = discord.utils.get(interaction.guild.roles, id=int(role_id))
+      if role:
+        await user.add_roles(role)
+        embed = discord.Embed(
+          title = f"Welcome {user.mention}!",
+          description = "Welcome to the Server! We hope you'll have a nice stay here!",
+          color = discord.Color.blue()
+        )
+        embed.set_image(url=avatar_url)
+        await interaction.response.send_message(embed=embed)
+      else:
+        embed = discord.Embed(
+          title="Error",
+          description="We didn't find the role you're searching for! Try again later!",
+          color = discord.Color.red()
+        )
+        await interaction.response.send_message(embed=embed)
     
 #scam delete
 @tree.command(
@@ -125,24 +147,34 @@ async def verify(interaction):
   description="Set up your scam decision"
 )
 async def set_scamdelete(interaction, delete: str):
-  if delete == "true":
-    guild_id = interaction.guild.id
-    await set_scam_delete(guild_id, delete)
+  user = interaction.user
+  owner = interaction.guild.owner_id
+  if user.id != owner:
     embed = discord.Embed(
-      title = "Succesfully Updated",
-      description = f"Set deletion of scam links to {delete}",
-      color = discord.Color.green()
+      title = "Missing Permission",
+      description = "Only the owner of the server can use this command!",
+      color = discord.Color.red()
     )
     await interaction.response.send_message(embed=embed, ephemeral=True)
-  if delete == "false":
-    guild_id = interaction.guild.id
-    await set_scam_delete(guild_id, delete)
-    embed = discord.Embed(
-      title = "Succesfully Updated",
-      description = f"Set deletion of scam links to {delete}",
-      color = discord.Color.green()
-    )
-    await interaction.response.send_message(embed=embed, ephemeral=True)
+  else:
+    if delete == "true":
+      guild_id = interaction.guild.id
+      await set_scam_delete(guild_id, delete)
+      embed = discord.Embed(
+        title = "Succesfully Updated",
+        description = f"Set deletion of scam links to {delete}",
+        color = discord.Color.green()
+      )
+      await interaction.response.send_message(embed=embed, ephemeral=True)
+    if delete == "false":
+      guild_id = interaction.guild.id
+      await set_scam_delete(guild_id, delete)
+      embed = discord.Embed(
+        title = "Succesfully Updated",
+        description = f"Set deletion of scam links to {delete}",
+        color = discord.Color.green()
+      )
+      await interaction.response.send_message(embed=embed, ephemeral=True)
   
 #on_message (antiscam)
 @client.event
@@ -150,8 +182,9 @@ async def on_message(ctx):
     user = ctx.author
     if user.bot:
         return
-    channel = ctx.channel
     guild_id = str(ctx.guild.id)
+    await add_xp(guild_id, user.id, 1)
+    channel = ctx.channel
     delete = await get_scam_delete(guild_id)
     with open('antiscam.json', 'r') as file:
         scam_links = json.load(file)
@@ -379,68 +412,165 @@ async def rps(interaction, choice: str):
       )
       await interaction.response.send_message(embed=embed)
 
+# settings tag
+@tree.command(name="settings_tag", description="Change the settings of tags!")
+async def settings_tag(interaction, set: str):
+  guild_id = interaction.guild.id
+  owner = interaction.guild.owner_id
+  user = interaction.user.id
+  if user == owner:
+    if set == "true":
+      await set_sTag(guild_id, set)
+      embed = discord.Embed(
+        title = "Success",
+        description = "The tag system has been enabled!",
+        color = discord.Color.green()
+      )
+      await interaction.response.send_message(embed=embed, ephemeral=True)
+    elif set == "false":
+      await set_sTag(guild_id, set)
+      embed = discord.Embed(
+        title = "Success",
+        description = "The tag system has been disabled!",
+        color = discord.Color.green()
+      )
+      await interaction.response.send_message(embed=embed, ephemeral=True)
+    else:
+      embed = discord.Embed(
+        title = "Error",
+        description = f"{set} isn't valid! choice true to enable the tag system. It's off by default.",
+        color = discord.Color.red()
+      )
+      await interaction.response.send_message(embed=embed, ephemeral=True)
+
 # tag create command
 @tree.command(name="tag_create", description="Create a shorthand tag!")
 async def tagcreate(interaction, tagname: str, tagcontent: str):
-  user = interaction.user.display_name
   guild_id = interaction.guild.id
-  check = await tag_check(guild_id, tagname)
-  if check == None:
-    await tag_create(guild_id, tagname, tagcontent, user)
-    embed = discord.Embed (
-      title = "Tag created!",
-      description = f"{tagname} successfully created!",
-      color = discord.Color.green()
-    )
-    embed.add_field(
-      name = "Tag Content:",
-      value = f"{tagcontent}"
-    )
-    await interaction.response.send_message(embed=embed, ephemeral=True)
+  settings = await get_sTag(guild_id)
+  if settings == 'true':
+    user = interaction.user.display_name
+    strikes = 0
+    check = await tag_check(guild_id, tagname)
+    if check == None:
+      await tag_create(guild_id, tagname, tagcontent, user, strikes)
+      embed = discord.Embed (
+        title = "Tag created!",
+        description = f"{tagname} successfully created!",
+        color = discord.Color.green()
+      )
+      embed.add_field(
+        name = "Tag Content:",
+        value = f"{tagcontent}"
+      )
+      await interaction.response.send_message(embed=embed, ephemeral=True)
+    else:
+      embed = discord.Embed(
+        title = "Already existing!",
+        description = f"The tag {tagname} is already existing!",
+        color = discord.Color.red()
+      )
+      await interaction.response.send_message(embed=embed, ephemeral=True)
   else:
     embed = discord.Embed(
-      title = "Already existing!",
-      description = f"The tag {tagname} is already existing!",
+      title = "Tags disabled!",
+      description = "Tags are disabled in this server.",
       color = discord.Color.red()
     )
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
 # tag command
-class reportButton(discord.ui.Button):
+class reportButton(discord.ui.View):
     def __init__(self):
-        super().__init__(label='Report', style=discord.ButtonStyle.danger, custom_id="reportButton")
-
+        super().__init__()
+        self.value = None
     @discord.ui.button(label='Report', style=discord.ButtonStyle.danger)
-    async def report(self, button: discord.ui.Button, interaction: discord.Interaction):
-        print("Button Clicked!")
-        await interaction.response.send_message('Report button pressed!', ephemeral=True)
+    async def report(self, interaction: discord.Interaction, button: discord.ui.Button):
+        guild_id = interaction.guild.id
+        if interaction.message.content:
+          tag_name = interaction.message.content.split()[0]
+          await add_strike(guild_id, tag_name)
+          strikes = await check_strike(guild_id, tag_name)
+          if strikes >= 3:
+            await del_tag(guild_id, tag_name)
+          embed = discord.Embed(
+            title = "Reported!",
+            description = f"{tag_name} has been reported!",
+            color = discord.Color.green()
+          )
+          await   interaction.followup.send_message("Test", ephemeral=True)
+        self.value = True
 
 @tree.command(name="tag", description="Use a shortcut tag!")
 async def tag(interaction, tagname: str):
-    guild_id = interaction.guild.id
+  guild_id = interaction.guild.id
+  check = await get_sTag(guild_id)
+  if check == 'true':
     content = await tag_get(guild_id, tagname)
     user = await tag_name(guild_id, tagname)
-
     if content is not None and user is not None:
-        view = discord.ui.View()
-        view.add_item(reportButton())
+      view = reportButton()
       
-        embed = discord.Embed(
-            title=f"Tag: {tagname}",
-            description=f"{content}",
-            color=discord.Color.blue()
-        )
-        embed.set_footer(
-            text=f"{user} created this command"
-        )
-        await interaction.response.send_message(embed=embed, view=view)
+      embed = discord.Embed(
+        title=f"{tagname}",
+        description=f"{content}",
+        color=discord.Color.blue()
+      )
+      embed.set_footer(
+        text=f"{user} created this command"
+      )
+      await interaction.response.send_message(embed=embed, view=view)
     else:
-        embed = discord.Embed(
-            title="Tag not found!",
-            description=f"{tagname} isn't registered, maybe a typo?",
-            color=discord.Color.red()
-        )
-        await interaction.response.send_message(embed=embed)
+      embed = discord.Embed(
+        title="Tag not found!",
+        description=f"{tagname} isn't registered, maybe a typo?",
+        color=discord.Color.red()
+      )
+      await interaction.response.send_message(embed=embed)
+  else:
+    embed = discord.Embed(
+      title = "Tag disabled!",
+      description = "Tag commands are disabled in this server.",
+      color = discord.Color.red()
+    )
+    await interaction.response.send_message(embed=embed, ephemeral=True)
+
+# tag report command
+@tree.command(name="tag_report", description="Report a tag!")
+async def tagreport(interaction, tag_name: str):
+  guild_id = interaction.guild.id
+  settings = await get_sTag(guild_id)
+
+  if settings.lower() == 'true':
+    check, strikes = await tag_check(guild_id, tag_name), await check_strike(guild_id, tag_name)
+    if not check:
+      embed = discord.Embed(
+      title="Error!",
+      description=f"{tag_name} doesn't exist!",
+      color=discord.Color.red()
+      )
+    elif int(strikes) >= 2:
+      await del_tag(guild_id, tag_name)
+      embed = discord.Embed(
+        title="Tag Deleted!",
+        description=f"{tag_name} has been deleted due to multiple reports!",
+        color=discord.Color.red()
+      )
+    else:
+      await add_strike(guild_id, tag_name)
+      strike = await check_strike(guild_id, tag_name)
+      embed = discord.Embed(
+        title="Reported!",
+        description=f"Successfully reported {tag_name}! ({int(strike)}/3)",
+        color=discord.Color.green()
+      )
+  else:
+    embed = discord.Embed(
+      title="Tag disabled!",
+      description="Tag commands are disabled in this server.",
+      color=discord.Color.red()
+    )
+  await interaction.response.send_message(embed=embed, ephemeral=True)
 
 #info command
 class repoButton(discord.ui.Button):
@@ -467,7 +597,7 @@ async def info(interaction):
   )
   embed.add_field(
     name = "Bot Version",
-    value = "```1.0.17```",
+    value = "```1.0.18```",
     inline = True
   )
   embed.add_field(
@@ -501,10 +631,33 @@ async def info(interaction):
     inline = True
   )
   await interaction.response.send_message(embed=embed, view=view)
+
+#get xp command
+@tree.command(name="rank", description="Check your Rank!")
+async def rank(interaction):
+  guild_id = interaction.guild.id
+  user_id = interaction.user.id
+  xp = await get_xp(guild_id, user_id)
+  level = await get_level(guild_id, user_id)
+  xp_value = int(xp[0]) if xp else 0
+  embed = discord.Embed(
+    title = f"{interaction.user.mention}'s Rank",
+    color = discord.Color.blue()
+  )
+  embed.add_field(
+    name = "XP",
+    value = f"{xp_value}"
+  )
+  embed.add_field(
+    name = "Level",
+    value = f"{level}"
+  )
+  await interaction.response.send_message(embed=embed)
   
 #BOT ONLINE
 @client.event
 async def on_ready():
+    client.start_time = datetime.datetime.utcnow()
     await tree.sync()
     print("Ready!")
     stay_alive()
