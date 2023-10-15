@@ -597,7 +597,7 @@ async def info(interaction):
   )
   embed.add_field(
     name = "Bot Version",
-    value = "```1.0.18```",
+    value = "```1.3.0```",
     inline = True
   )
   embed.add_field(
