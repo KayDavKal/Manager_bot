@@ -5,7 +5,7 @@ async def database():
     c = await conn.cursor()
 
     await c.execute('''CREATE TABLE IF NOT EXISTS settings
-                       (guild_id TEXT, scam_delete TEXT DEFAULT 'false', verified_role TEXT, counting_channel TEXT)''')
+                       (guild_id TEXT, scam_delete TEXT DEFAULT 'false', verified_role TEXT, tag TEXT DEFAULT 'false')''')
     await conn.commit()
     await conn.close()
 
@@ -63,4 +63,33 @@ async def get_verified_role(guild_id):
   if result is not None:
       role_id = result[0]
       return role_id
+  return None
+
+async def set_sTag(guild_id, tag):
+  conn = await aiosqlite.connect('settings.db')
+  c = await conn.cursor()
+
+  await c.execute('''SELECT * FROM settings WHERE guild_id = ?''', (guild_id,))
+  result = await c.fetchone()
+
+  if result is None:
+    await c.execute('''INSERT INTO settings (guild_id, tag) VALUES (?, ?)''', (guild_id, tag))
+  else:
+    await c.execute('''UPDATE settings SET tag = ? WHERE guild_id = ?''', (tag, guild_id))
+
+  await conn.commit()
+  await conn.close()
+
+async def get_sTag(guild_id):
+  conn = await aiosqlite.connect('settings.db')
+  c = await conn.cursor()
+
+  await c.execute('''SELECT tag FROM settings WHERE guild_id = ?''', (guild_id,))
+  result = await c.fetchone()
+
+  await conn.close()
+
+  if result is not None:
+    return result[0]
+
   return None
