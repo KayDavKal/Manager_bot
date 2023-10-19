@@ -481,26 +481,34 @@ async def tagcreate(interaction, tagname: str, tagcontent: str):
 
 # tag command
 class reportButton(discord.ui.View):
-    def __init__(self):
-        super().__init__()
-        self.value = None
-    @discord.ui.button(label='Report', style=discord.ButtonStyle.danger)
-    async def report(self, interaction: discord.Interaction, button: discord.ui.Button):
-        guild_id = interaction.guild.id
-        if interaction.message.content:
-          tag_name = interaction.message.content.split()[0]
-          await add_strike(guild_id, tag_name)
-          strikes = await check_strike(guild_id, tag_name)
-          if strikes >= 3:
-            await del_tag(guild_id, tag_name)
-          embed = discord.Embed(
-            title = "Reported!",
-            description = f"{tag_name} has been reported!",
-            color = discord.Color.green()
-          )
-          await   interaction.followup.send_message("Test", ephemeral=True)
-        self.value = True
-
+  def __init__(self, tag_name):
+    super().__init__()
+    self.tag_name = tag_name
+  @discord.ui.button(label='Report', style=discord.ButtonStyle.danger)
+  async def report(self, interaction: discord.Interaction, button: discord.ui.Button):
+    guild_id = interaction.guild.id
+    if tag_name is not None:
+      await add_strike(guild_id, self.tag_name)
+      check = await check_strike(guild_id, self.tag_name)
+      if int(check) >= 3:
+        await del_tag(guild_id, self.tag_name)
+        embed = discord.Embed(
+          title = "Tag deleted!",
+          description = f"The tag {self.tag_name} has been deleted duo to too many reports!",
+          color = discord.Color.red()
+        )
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+      else:
+        embed = discord.Embed(
+          title = "Reported!",
+          description = f"You have reported this tag. {check}/3",
+          color = discord.Color.green()
+        )
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+    else:
+      await interaction.response.send_message("something went wrong...", ephemeral=True)
+    self.stop()
+        
 @tree.command(name="tag", description="Use a shortcut tag!")
 async def tag(interaction, tagname: str):
   guild_id = interaction.guild.id
@@ -509,8 +517,7 @@ async def tag(interaction, tagname: str):
     content = await tag_get(guild_id, tagname)
     user = await tag_name(guild_id, tagname)
     if content is not None and user is not None:
-      view = reportButton()
-      
+      view = reportButton(tagname)
       embed = discord.Embed(
         title=f"{tagname}",
         description=f"{content}",
@@ -529,48 +536,11 @@ async def tag(interaction, tagname: str):
       await interaction.response.send_message(embed=embed)
   else:
     embed = discord.Embed(
-      title = "Tag disabled!",
-      description = "Tag commands are disabled in this server.",
-      color = discord.Color.red()
-    )
-    await interaction.response.send_message(embed=embed, ephemeral=True)
-
-# tag report command
-@tree.command(name="tag_report", description="Report a tag!")
-async def tagreport(interaction, tag_name: str):
-  guild_id = interaction.guild.id
-  settings = await get_sTag(guild_id)
-
-  if settings.lower() == 'true':
-    check, strikes = await tag_check(guild_id, tag_name), await check_strike(guild_id, tag_name)
-    if not check:
-      embed = discord.Embed(
-      title="Error!",
-      description=f"{tag_name} doesn't exist!",
-      color=discord.Color.red()
-      )
-    elif int(strikes) >= 2:
-      await del_tag(guild_id, tag_name)
-      embed = discord.Embed(
-        title="Tag Deleted!",
-        description=f"{tag_name} has been deleted due to multiple reports!",
-        color=discord.Color.red()
-      )
-    else:
-      await add_strike(guild_id, tag_name)
-      strike = await check_strike(guild_id, tag_name)
-      embed = discord.Embed(
-        title="Reported!",
-        description=f"Successfully reported {tag_name}! ({int(strike)}/3)",
-        color=discord.Color.green()
-      )
-  else:
-    embed = discord.Embed(
       title="Tag disabled!",
       description="Tag commands are disabled in this server.",
       color=discord.Color.red()
     )
-  await interaction.response.send_message(embed=embed, ephemeral=True)
+    await interaction.response.send_message(embed=embed, ephemeral=True)
 
 #info command
 class repoButton(discord.ui.Button):
