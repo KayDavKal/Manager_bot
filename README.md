@@ -9,9 +9,10 @@ Its a single person creation and gets updated in my freetime.
 
 v.1.3
 
-## Support Server
+## Support
 
 Feel free to join [the support server](https://discord.com/invite/Myx3DWMVqc)!
+Or add the bot to your server [Bot Invite]()
 
 ## Credit
 
