@@ -624,7 +624,22 @@ async def rank(interaction):
     value = f"{level}"
   )
   await interaction.response.send_message(embed=embed)
-  
+
+# Invite command
+class inviteButton(discord.ui.Button):
+  def __init__(self):
+      super().__init__(label='Add me to your server', style=discord.ButtonStyle.link, url="https://discord.com/api/oauth2/authorize?client_id=1126286909409349694&permissions=18006986263616&scope=bot")
+
+@tree.command(name="invite", description="Add the bot to your server!")
+async def invite(interaction):
+  view = discord.ui.View()
+  view.add_item(inviteButton())
+  embed = discord.Embed(
+    title = "Invite Manager Bot",
+    color = discord.Color.blue()
+  )
+  await interaction.response.send_message(embed=embed, ephemeral=True, view=view)
+
 #BOT ONLINE
 @client.event
 async def on_ready():
