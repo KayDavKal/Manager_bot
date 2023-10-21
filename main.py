@@ -498,6 +498,7 @@ class reportButton(discord.ui.View):
           color = discord.Color.red()
         )
         await interaction.response.send_message(embed=embed, ephemeral=True)
+        self.stop()
       else:
         embed = discord.Embed(
           title = "Reported!",
@@ -507,7 +508,7 @@ class reportButton(discord.ui.View):
         await interaction.response.send_message(embed=embed, ephemeral=True)
     else:
       await interaction.response.send_message("something went wrong...", ephemeral=True)
-    self.stop()
+      self.stop()
         
 @tree.command(name="tag", description="Use a shortcut tag!")
 async def tag(interaction, tagname: str):
