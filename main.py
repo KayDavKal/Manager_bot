@@ -479,37 +479,43 @@ async def tagcreate(interaction, tagname: str, tagcontent: str):
     )
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
-# tag command
+#tag command
 class reportButton(discord.ui.View):
   def __init__(self, tag_name):
     super().__init__()
     self.tag_name = tag_name
+    self.reported_users = set()
   @discord.ui.button(label='Report', style=discord.ButtonStyle.danger)
   async def report(self, interaction: discord.Interaction, button: discord.ui.Button):
     guild_id = interaction.guild.id
-    if tag_name is not None:
+    user_id = interaction.user.id
+    if user_id not in self.reported_users:
       await add_strike(guild_id, self.tag_name)
       check = await check_strike(guild_id, self.tag_name)
       if int(check) >= 3:
         await del_tag(guild_id, self.tag_name)
         embed = discord.Embed(
-          title = "Tag deleted!",
-          description = f"The tag {self.tag_name} has been deleted duo to too many reports!",
-          color = discord.Color.red()
+          title="Tag deleted!",
+          description=f"The tag {self.tag_name} has been deleted due to too many reports!",
+          color=discord.Color.red()
         )
         await interaction.response.send_message(embed=embed, ephemeral=True)
-        self.stop()
       else:
         embed = discord.Embed(
-          title = "Reported!",
-          description = f"You have reported this tag. {check}/3",
-          color = discord.Color.green()
+          title="Reported!",
+          description=f"You have reported this tag. {check}/3",
+          color=discord.Color.green()
         )
         await interaction.response.send_message(embed=embed, ephemeral=True)
+        self.reported_users.add(user_id)
     else:
-      await interaction.response.send_message("something went wrong...", ephemeral=True)
-      self.stop()
-        
+      embed = discord.Embed(
+        title="Already reported!",
+        description="You have already reported this tag.",
+        color=discord.Color.red()
+      )
+      await interaction.response.send_message(embed=embed, ephemeral=True)
+
 @tree.command(name="tag", description="Use a shortcut tag!")
 async def tag(interaction, tagname: str):
   guild_id = interaction.guild.id
@@ -568,7 +574,7 @@ async def info(interaction):
   )
   embed.add_field(
     name = "Bot Version",
-    value = "```1.3.0```",
+    value = "```1.3```",
     inline = True
   )
   embed.add_field(
