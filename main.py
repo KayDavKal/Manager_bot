@@ -646,6 +646,176 @@ async def invite(interaction):
   )
   await interaction.response.send_message(embed=embed, ephemeral=True, view=view)
 
+# balance command
+@tree.command(name="balance", description="Check your balance")
+async def balance(interaction, user: discord.Member = None):
+  guild_id = interaction.guild.id
+  member = interaction.user
+  if user is not None:
+    user_id = user.id
+  else:
+    user_id = member.id
+    user = member
+
+  balance = await get_money(guild_id, user_id)
+  bank = await get_bank(guild_id, user_id)
+  embed = discord.Embed(
+    title = f"{user.mention}'s' Balance",
+    color = discord.Color.blue()
+  )
+  embed.add_field(
+    name = "Wallet",
+    value = f"{balance}"
+  )
+  embed.add_field(
+    name = "Bank",
+    value = f"{bank}"
+  )
+  embed.set_author(name=user.name, icon_url=user.avatar)
+  await interaction.response.send_message(embed=embed)
+
+# add money command
+@tree.command(name="add_money", description="Add money to your balance!")
+async def add_balance(interaction, user: discord.Member, money: int):
+  guild_id = interaction.guild.id
+  member = interaction.user
+  member_id = member.id
+  role = any(role.permissions.administrator for role in member.roles)
+  if role:
+    user_id = user.id
+    money = await add_money(guild_id, user_id, money)
+    embed = discord.Embed(
+      title = "Balance added!",
+      description = f"{user.mention} has now {money}!",
+      color = discord.Color.green()
+    )
+    await interaction.response.send_message(embed=embed)
+  else:
+    embed = discord.Embed(
+      title = "Missing Permissions!",
+      description = "You don't have the permissions to use this command!",
+      color = discord.Color.red()
+    )
+    await interaction.response.send_message(embed=embed, ephemeral=True)
+
+# sub money command
+@tree.command(name="sub_money", description="Add money to your balance!")
+async def sub_balance(interaction, user: discord.Member, money: int):
+  guild_id = interaction.guild.id
+  member = interaction.user
+  member_id = member.id
+  role = any(role.permissions.administrator for role in member.roles)
+  if role:
+    user_id = user.id
+    money = await sub_money(guild_id, user_id, money)
+    embed = discord.Embed(
+      title = "Balance subscribed!",
+      description = f"{user.mention} has now {money}!",
+      color = discord.Color.green()
+    )
+    await interaction.response.send_message(embed=embed)
+  else:
+    embed = discord.Embed(
+      title = "Missing Permissions!",
+      description = "You don't have the permissions to use this command!",
+      color = discord.Color.red()
+    )
+    await interaction.response.send_message(embed=embed, ephemeral=True)
+
+# deposit command
+@tree.command(name="deposit", description="Add money to your bank!")
+async def add_to_bank(interaction, money: str or int):
+  guild_id = interaction.guild.id
+  user = interaction.user
+  balance = await get_money(guild_id, user.id)
+  if money == "all":
+    money = int(balance)
+  else:
+    money = int(money)
+  if money > balance:
+    embed = discord.Embed(
+      title = "Too much money!",
+      description = f"You don't have enough money to add to your bank. Select from a span of 1 to {balance}!",
+      color = discord.Color.red()
+    )
+    await interaction.response.send_message(embed=embed)
+  else:
+    await sub_money(guild_id, user.id, money)
+    await add_bank(guild_id, user.id, money)
+    new_bank = await get_bank(guild_id, user.id)
+    embed = discord.Embed(
+      title = "Added to bank!",
+      description = f"You added {money} to your bank. Now {new_bank}",
+      color = discord.Color.green()
+    )
+    await interaction.response.send_message(embed=embed)
+
+# withdraw command
+@tree.command(name="withdraw", description="Add money from your bank!")
+async def sub_to_bank(interaction, money: str or int):
+  guild_id = interaction.guild.id
+  user = interaction.user
+  bank = await get_bank(guild_id, user.id)
+  if money == "all":
+    money = int(bank)
+  else:
+    money = int(money)
+  if money > bank:
+    embed = discord.Embed(
+      title = "Too much money!",
+      description = f"You don't have enough money to withdraw to your balance. Select from a span of 1 to {bank}!",
+      color = discord.Color.red()
+    )
+    await interaction.response.send_message(embed=embed)
+  else:
+    await add_money(guild_id, user.id, money)
+    await sub_bank(guild_id, user.id, money)
+    new_balance = await get_money(guild_id, user.id)
+    embed = discord.Embed(
+      title = "Added to balance!",
+      description = f"You added {money} to your balance. Now {new_balance}",
+      color = discord.Color.green()
+    )
+    await interaction.response.send_message(embed=embed)
+
+# work command
+@tree.command(name="work", description="Work for money!")
+async def work(interaction):
+  guild_id = interaction.guild.id
+  user = interaction.user
+  loan = random.randint(1,100)
+  await add_money(guild_id, user.id, loan)
+  embed = discord.Embed(
+    title = "Worked out!",
+    description = f"You got a paycheck of {loan}!",
+    color = discord.Color.green()
+  )
+  await interaction.response.send_message(embed=embed)
+
+#daily command
+@tree.command(name="daily", description="Get your daily bonus!")
+@commands.cooldown(1, 86400, commands.BucketType.user)
+async def daily(interaction):
+  money = random.randint(100, 500)
+  xp = random.randint(1,50)
+  guild_id = interaction.guild.id
+  user = interaction.user
+  await add_money(guild_id, user.id, money)
+  await add_xp(guild_id, user.id, xp)
+  embed = discord.Embed(
+    title = "Claimed!",
+    description = "You got your daily bonus!",
+    color = discord.Color.green()
+  )
+  embed.add_field(name="money" , value=f"```{money}```")
+  embed.add_field(name="xp",value=f"```{xp}```")
+  embed.set_author(name=user.name, icon_url=user.avatar)
+  await interaction.response.send_message(embed=embed)
+@client.event
+async def on_command_error(interaction, error):
+  if isinstance(error, commands.CommandOnCooldown):
+      await interaction.response.send(f"This command is on cooldown. Try again in {round(error.retry_after)} seconds.")
+
 #BOT ONLINE
 @client.event
 async def on_ready():
@@ -653,6 +823,7 @@ async def on_ready():
     await tree.sync()
     print("Ready!")
     stay_alive()
+    await eco_table()
     await database()
     await tagbase()
     await lvlsystem()
