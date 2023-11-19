@@ -7,7 +7,7 @@ Its a single person creation and gets updated in my freetime.
 
 ## Version of the bot:
 
-v.1.3
+v.1.4
 
 ## Support
 
