@@ -2,7 +2,7 @@
 
 ## Info
 
-This Bot is made by me and devoped by me.
+This Bot is made by me and developed by me.
 Its a single person creation and gets updated in my freetime.
 
 ## Version of the bot:
